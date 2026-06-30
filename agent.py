@@ -21,8 +21,8 @@ researcher = Agent(
 
 # Give the agent a task
 task = Task(
-    description="Explain what an AI agent is in 3 simple sentences. Use plain English.",
-    expected_output="A clear 3-sentence explanation of AI agents for a complete beginner.",
+    description="Explain what generative AI is in 3 simple sentences. Use plain English.",
+    expected_output="A clear 3-sentence explanation of generative AI for a complete beginner.",
     agent=researcher
 )
 
