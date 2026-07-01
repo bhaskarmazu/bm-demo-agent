@@ -43,11 +43,22 @@ if prompt := st.chat_input("Ask me anything..."):
                 llm=llm,
                 verbose=False
             )
-            task = Task(
-                description=prompt,
-                expected_output="A clear, helpful answer to the user's question.",
-                agent=researcher
-            )
+           # Build conversation history string
+history = ""
+for msg in st.session_state.messages[:-1]:  # all except current message
+    role = "User" if msg["role"] == "user" else "Assistant"
+    history += f"{role}: {msg['content']}\n"
+
+task = Task(
+    description=f"""Here is the conversation so far:
+{history}
+
+Now respond to this new message: {prompt}
+
+Take the conversation history into account in your response.""",
+    expected_output="A helpful answer that considers the full conversation context.",
+    agent=researcher
+)
             crew = Crew(agents=[researcher], tasks=[task], verbose=False)
             result = crew.kickoff()
             response = str(result)
