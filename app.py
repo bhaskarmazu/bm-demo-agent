@@ -5,6 +5,10 @@ import os
 
 load_dotenv()
 
+
+# Get API key - works on both local and Streamlit Cloud
+api_key = st.secrets.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY"))
+
 st.title("🤖 My AI Agent")
 st.caption("Powered by CrewAI + Gemini")
 
@@ -30,7 +34,7 @@ if prompt := st.chat_input("Ask me anything..."):
         with st.spinner("Thinking..."):
             llm = LLM(
                 model="gemini-2.5-flash",
-                api_key=os.getenv("GEMINI_API_KEY")
+                api_key=api_key
             )
             researcher = Agent(
                 role="Research Assistant",
