@@ -1,24 +1,26 @@
+
 import streamlit as st
 from crewai import Agent, Task, Crew, LLM
 from dotenv import load_dotenv
-# from duckduckgo_search import DDGS
 from googlesearch import search
 import os
  
 load_dotenv()  # works locally
  
 # Get API key - works on both local and Streamlit Cloud
-os.environ["GROQ_API_KEY"] = st.secrets.get("GROQ_API_KEY", os.getenv("GROQ_API_KEY", ""))
+gemini_key = st.secrets.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY", ""))
  
  
 def web_search(query: str) -> str:
+    """Search the web using Google and return compact results."""
     try:
         results = list(search(query, num_results=3, advanced=True))
         if not results:
             return "No search results found."
         output = ""
         for r in results:
-            output += f"Title: {r.title}\nSummary: {r.description}\n\n"
+            summary = r.description[:250] + "..." if r.description and len(r.description) > 250 else (r.description or "")
+            output += f"Title: {r.title}\nSummary: {summary}\n\n"
         return output
     except Exception as e:
         return f"Search failed: {str(e)}"
@@ -45,47 +47,38 @@ if prompt := st.chat_input("Ask me anything..."):
     with st.chat_message("user"):
         st.write(prompt)
  
-    # Build conversation history - only last 3 exchanges to save tokens
-    recent = st.session_state.messages[-7:-1]  # last 3 user+assistant pairs
+    # Build conversation history - last 3 exchanges to save tokens
+    recent = st.session_state.messages[-7:-1]
     history = ""
     for msg in recent:
         role = "User" if msg["role"] == "user" else "Assistant"
-        content = msg['content'][:300] + "..." if len(msg['content']) > 300 else msg['content']
+        content = msg["content"][:300] + "..." if len(msg["content"]) > 300 else msg["content"]
         history += f"{role}: {content}\n"
  
     with st.chat_message("assistant"):
-        with st.spinner("Searching the web and writing response..."):
+        with st.spinner("Searching and thinking..."):
  
-            # Step 1: Run web search before the crew
+            # Step 1: Web search
             search_results = web_search(prompt)
  
-            # Debug panel - remove when everything works
+            # Debug panel - remove when no longer needed
             with st.expander("🔍 Search results (debug)"):
                 st.text(search_results)
  
-            llm = LLM(model="groq/llama-3.3-70b-versatile")
+            # Step 2: Run agent
+            try:
+                llm = LLM(model="gemini-2.5-flash", api_key=gemini_key)
  
-            # Agent 1: Researcher — analyzes search results
-            researcher = Agent(
-                role="Research Specialist",
-                goal="Analyze web search results and extract the most relevant information to answer the user's question",
-                backstory="You are an expert researcher who reads search results and identifies key facts.",
-                llm=llm,
-                verbose=False
-            )
+                agent = Agent(
+                    role="Research Assistant",
+                    goal="Find information and give clear, friendly answers",
+                    backstory="You are a helpful expert who reads search results and explains things simply and conversationally.",
+                    llm=llm,
+                    verbose=False
+                )
  
-            # Agent 2: Writer — turns research into a friendly response
-            writer = Agent(
-                role="Communication Specialist",
-                goal="Write a clear, friendly response based on the research",
-                backstory="You explain things simply and conversationally.",
-                llm=llm,
-                verbose=False
-            )
- 
-            # Task 1: Researcher analyzes search results
-            research_task = Task(
-                description=f"""Web search results:
+                task = Task(
+                    description=f"""Web search results for the user's question:
 {search_results}
  
 Recent conversation:
@@ -93,36 +86,21 @@ Recent conversation:
  
 User's question: {prompt}
  
-Extract the key facts from the search results that answer this question.""",
-                expected_output="A concise summary of the key facts from the search results.",
-                agent=researcher
-            )
+Using the search results above, write a clear and friendly answer to the user's question.
+If the search results don't contain the answer, say so honestly.""",
+                    expected_output="A concise, friendly, conversational answer based on the search results.",
+                    agent=agent
+                )
  
-            # Task 2: Writer crafts the final response
-            write_task = Task(
-                description=f"""Using the research, write a friendly response to: {prompt}
- 
-Keep it concise and conversational. Use the conversation history for context:
-{history}""",
-                expected_output="A clear, friendly answer based on the research.",
-                agent=writer,
-                context=[research_task]
-            )
- 
-            crew = Crew(
-                agents=[researcher, writer],
-                tasks=[research_task, write_task],
-                verbose=False
-            )
- 
-            try:
+                crew = Crew(agents=[agent], tasks=[task], verbose=False)
                 result = crew.kickoff()
                 response = str(result)
                 st.write(response)
+ 
             except Exception as e:
-                st.error(f"Error type: {type(e).__name__}")
-                st.error(f"Error details: {str(e)}")
-                response = "Error occurred."
+                st.error(f"Error: {type(e).__name__}: {str(e)}")
+                response = "Sorry, I encountered an error. Please try again."
+                st.write(response)
  
     # Save assistant response
     st.session_state.messages.append({"role": "assistant", "content": response})
