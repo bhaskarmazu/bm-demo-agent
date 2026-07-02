@@ -8,7 +8,7 @@ import os
 load_dotenv()  # works locally
  
 # Get API key - works on both local and Streamlit Cloud
-api_key = st.secrets.get("GROQ_API_KEY", os.getenv("GROQ_API_KEY"))
+os.environ["GROQ_API_KEY"] = st.secrets.get("GROQ_API_KEY", os.getenv("GROQ_API_KEY", ""))
  
  
 def web_search(query: str) -> str:
@@ -63,7 +63,7 @@ if prompt := st.chat_input("Ask me anything..."):
             with st.expander("🔍 Search results (debug)"):
                 st.text(search_results)
  
-            llm = LLM(model="groq/llama-3.3-70b-versatile", api_key=api_key)
+            llm = LLM(model="groq/llama-3.3-70b-versatile")
  
             # Agent 1: Researcher — analyzes search results
             researcher = Agent(
