@@ -1,7 +1,8 @@
 import streamlit as st
 from crewai import Agent, Task, Crew, LLM
 from dotenv import load_dotenv
-from duckduckgo_search import DDGS
+# from duckduckgo_search import DDGS
+from googlesearch import search
 import os
  
 load_dotenv()  # works locally
@@ -11,18 +12,14 @@ api_key = st.secrets.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY"))
  
  
 def web_search(query: str) -> str:
-    """Search the web using DuckDuckGo. Returns compact results to save tokens."""
     try:
-        with DDGS() as ddgs:
-            results = list(ddgs.text(query, max_results=3))  # 3 results instead of 5
-            if not results:
-                return "No search results found."
-            output = ""
-            for r in results:
-                # Truncate each summary to 250 chars to save tokens
-                summary = r['body'][:250] + "..." if len(r['body']) > 250 else r['body']
-                output += f"Title: {r['title']}\nSummary: {summary}\n\n"
-            return output
+        results = list(search(query, num_results=3, advanced=True))
+        if not results:
+            return "No search results found."
+        output = ""
+        for r in results:
+            output += f"Title: {r.title}\nSummary: {r.description}\n\n"
+        return output
     except Exception as e:
         return f"Search failed: {str(e)}"
  
@@ -66,7 +63,7 @@ if prompt := st.chat_input("Ask me anything..."):
             with st.expander("🔍 Search results (debug)"):
                 st.text(search_results)
  
-            llm = LLM(model="gemini-2.5-flash", api_key=api_key)
+            llm = LLM(model="gemini-2.0-flash", api_key=api_key)
  
             # Agent 1: Researcher — analyzes search results
             researcher = Agent(

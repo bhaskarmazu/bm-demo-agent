@@ -1,4 +1,4 @@
 crewai[google-genai]
 python-dotenv
 streamlit
-duckduckgo-search
+googlesearch-python
