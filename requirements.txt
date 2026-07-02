@@ -2,4 +2,3 @@ crewai[google-genai]
 python-dotenv
 streamlit
 googlesearch-python
-groq
