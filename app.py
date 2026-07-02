@@ -8,7 +8,7 @@ import os
 load_dotenv()  # works locally
  
 # Get API key - works on both local and Streamlit Cloud
-api_key = st.secrets.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY"))
+api_key = st.secrets.get("GROQ_API_KEY", os.getenv("GROQ_API_KEY"))
  
  
 def web_search(query: str) -> str:
@@ -63,7 +63,7 @@ if prompt := st.chat_input("Ask me anything..."):
             with st.expander("🔍 Search results (debug)"):
                 st.text(search_results)
  
-            llm = LLM(model="gemini-2.0-flash", api_key=api_key)
+            llm = LLM(model="groq/llama-3.3-70b-versatile", api_key=api_key)
  
             # Agent 1: Researcher — analyzes search results
             researcher = Agent(
