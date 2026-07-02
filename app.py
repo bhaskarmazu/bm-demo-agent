@@ -1,6 +1,5 @@
 import streamlit as st
 from crewai import Agent, Task, Crew, LLM
-from crewai.tools import BaseTool
 from dotenv import load_dotenv
 from duckduckgo_search import DDGS
 import os
@@ -10,23 +9,20 @@ load_dotenv()  # works locally
 # Get API key - works on both local and Streamlit Cloud
 api_key = st.secrets.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY"))
  
-# --- Web Search Tool (free, no API key needed) ---
-class WebSearchTool(BaseTool):
-    name: str = "Web Search"
-    description: str = "Search the web for current, real-time information on any topic. Use this for recent events, facts, or anything needing up-to-date information."
  
-    def _run(self, query: str) -> str:
-        try:
-            with DDGS() as ddgs:
-                results = list(ddgs.text(query, max_results=5))
-                if not results:
-                    return "No search results found."
-                output = ""
-                for r in results:
-                    output += f"Title: {r['title']}\nURL: {r['href']}\nSummary: {r['body']}\n\n"
-                return output
-        except Exception as e:
-            return f"Search failed: {str(e)}"
+def web_search(query: str) -> str:
+    """Search the web using DuckDuckGo and return results as text."""
+    try:
+        with DDGS() as ddgs:
+            results = list(ddgs.text(query, max_results=5))
+            if not results:
+                return "No search results found."
+            output = ""
+            for r in results:
+                output += f"Title: {r['title']}\nURL: {r['href']}\nSummary: {r['body']}\n\n"
+            return output
+    except Exception as e:
+        return f"Search failed: {str(e)}"
  
  
 # --- Streamlit UI ---
@@ -56,45 +52,49 @@ if prompt := st.chat_input("Ask me anything..."):
         role = "User" if msg["role"] == "user" else "Assistant"
         history += f"{role}: {msg['content']}\n"
  
-    # Run the two-agent crew
     with st.chat_message("assistant"):
-        with st.spinner("Researching and writing..."):
+        with st.spinner("Searching the web and writing response..."):
+ 
+            # Step 1: Run web search before the crew
+            search_results = web_search(prompt)
  
             llm = LLM(model="gemini-2.5-flash", api_key=api_key)
-            search_tool = WebSearchTool()
  
-            # Agent 1: Researcher with web search
+            # Agent 1: Researcher — analyzes the search results
             researcher = Agent(
                 role="Research Specialist",
-                goal="Search the web and gather accurate, up-to-date information to answer the user's question",
-                backstory="You are an expert researcher who finds reliable information using web search. You always look for the most current information available.",
+                goal="Analyze web search results and extract the most accurate, relevant information to answer the user's question",
+                backstory="You are an expert researcher who reads web search results and identifies the key facts and insights needed to answer a question.",
                 llm=llm,
-                tools=[search_tool],
                 verbose=False
             )
  
-            # Agent 2: Writer
+            # Agent 2: Writer — turns research into a friendly response
             writer = Agent(
                 role="Communication Specialist",
                 goal="Take research findings and write a clear, friendly, conversational response",
-                backstory="You are a skilled writer who takes complex research and explains it simply. You write in a warm, conversational tone suitable for a beginner.",
+                backstory="You are a skilled writer who takes complex research and explains it simply. You write in a warm, conversational tone.",
                 llm=llm,
                 verbose=False
             )
  
-            # Task 1: Research the question
+            # Task 1: Researcher analyzes search results
             research_task = Task(
-                description=f"""Previous conversation:
+                description=f"""Here are the web search results for the user's question:
+ 
+{search_results}
+ 
+Previous conversation:
 {history}
  
-User's current question: {prompt}
+User's question: {prompt}
  
-Search the web to find accurate and up-to-date information to answer this question. Gather key facts and relevant details.""",
-                expected_output="A detailed summary of research findings with key facts and sources.",
+Analyze these search results and extract the key facts and relevant information needed to answer the question accurately.""",
+                expected_output="A clear summary of the most relevant facts and information found in the search results.",
                 agent=researcher
             )
  
-            # Task 2: Write a response based on the research
+            # Task 2: Writer crafts the final response
             write_task = Task(
                 description=f"""Using the research provided, write a clear and friendly response to: {prompt}
  
