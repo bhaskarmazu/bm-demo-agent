@@ -57,6 +57,10 @@ if prompt := st.chat_input("Ask me anything..."):
  
             # Step 1: Run web search before the crew
             search_results = web_search(prompt)
+
+            # Temporary debug - remove later
+            with st.expander("🔍 Search results (debug)"):
+                st.text(search_results)
  
             llm = LLM(model="gemini-2.5-flash", api_key=api_key)
  
