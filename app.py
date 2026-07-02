@@ -119,13 +119,13 @@ Keep it concise and conversational. Use the conversation history for context:
             )
  
             try:
-    result = crew.kickoff()
-    response = str(result)
-    st.write(response)
-except Exception as e:
-    st.error(f"Error type: {type(e).__name__}")
-    st.error(f"Error details: {str(e)}")
-    response = "Error occurred."
+                result = crew.kickoff()
+                response = str(result)
+                st.write(response)
+            except Exception as e:
+                st.error(f"Error type: {type(e).__name__}")
+                st.error(f"Error details: {str(e)}")
+                response = "Error occurred."
  
     # Save assistant response
     st.session_state.messages.append({"role": "assistant", "content": response})
