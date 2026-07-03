@@ -1,4 +1,4 @@
-rewai[google-genai]
+crewai[google-genai]
 python-dotenv
 streamlit
 tavily-python
