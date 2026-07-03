@@ -1,7 +1,9 @@
+
 import streamlit as st
 from crewai import Agent, Task, Crew, LLM
 from tavily import TavilyClient
 from dotenv import load_dotenv
+from datetime import date
 import os
  
 load_dotenv()  # works locally
@@ -9,6 +11,9 @@ load_dotenv()  # works locally
 # Get API keys - works on both local and Streamlit Cloud
 gemini_key = st.secrets.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY", ""))
 tavily_key = st.secrets.get("TAVILY_API_KEY", os.getenv("TAVILY_API_KEY", ""))
+ 
+# Today's date - passed to agent so it knows what "now" means
+TODAY = date.today().strftime("%B %d, %Y")
  
  
 def web_search(query: str) -> str:
@@ -61,12 +66,16 @@ if prompt := st.chat_input("Ask me anything..."):
         with st.spinner("Searching and thinking..."):
  
             # Build a context-aware search query for follow-up questions
+            # Only use USER messages for context (not assistant responses)
             search_query = prompt
             if history and len(prompt.split()) < 8:
-                # Short question = likely a follow-up, enrich with recent context
-                last_lines = [l for l in history.strip().split('\n') if l.strip()]
-                if last_lines:
-                    context_hint = last_lines[-1].replace("Assistant: ", "").replace("User: ", "")[:100]
+                user_messages = [
+                    l.replace("User: ", "").strip()
+                    for l in history.strip().split("\n")
+                    if l.startswith("User:")
+                ]
+                if user_messages:
+                    context_hint = user_messages[-1][:100]
                     search_query = f"{context_hint} {prompt}"
  
             # Step 1: Web search
@@ -83,24 +92,28 @@ if prompt := st.chat_input("Ask me anything..."):
                 agent = Agent(
                     role="Research Assistant",
                     goal="Find information and give clear, friendly answers",
-                    backstory="You are a helpful expert who reads search results and explains things simply and conversationally.",
+                    backstory=f"You are a helpful expert who reads search results and explains things simply. Today's date is {TODAY} — use this to correctly interpret whether events are past, present, or future.",
                     llm=llm,
                     verbose=False
                 )
  
                 task = Task(
-                    description=f"""Web search results:
+                    description=f"""Today's date is {TODAY}.
+ 
+Web search results:
 {search_results}
  
-Conversation history (IMPORTANT - use this for context on follow-up questions):
+Conversation history (use this to understand follow-up questions):
 {history}
  
 User's current question: {prompt}
  
-Use the conversation history to understand what the user is referring to (e.g. if they say "who won it?", check the history to know what "it" refers to).
-Then use the search results to give an accurate, friendly answer.
-If the search results don't contain the answer, say so honestly.""",
-                    expected_output="A concise, friendly answer that correctly handles follow-up questions using conversation context.",
+Important instructions:
+- Use the conversation history to understand what the user is referring to in follow-up questions
+- Use today's date ({TODAY}) to correctly determine if events are past, present, or future
+- Base your answer on the search results, not on assumptions about dates
+- If search results show current matches or recent results, trust them as accurate""",
+                    expected_output="A concise, friendly, accurate answer based on search results and conversation context.",
                     agent=agent
                 )
  
