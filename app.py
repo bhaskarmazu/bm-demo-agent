@@ -60,12 +60,21 @@ if prompt := st.chat_input("Ask me anything..."):
     with st.chat_message("assistant"):
         with st.spinner("Searching and thinking..."):
  
+            # Build a context-aware search query for follow-up questions
+            search_query = prompt
+            if history and len(prompt.split()) < 8:
+                # Short question = likely a follow-up, enrich with recent context
+                last_lines = [l for l in history.strip().split('\n') if l.strip()]
+                if last_lines:
+                    context_hint = last_lines[-1].replace("Assistant: ", "").replace("User: ", "")[:100]
+                    search_query = f"{context_hint} {prompt}"
+ 
             # Step 1: Web search
-            search_results = web_search(prompt)
+            search_results = web_search(search_query)
  
             # Debug panel - remove when no longer needed
             with st.expander("🔍 Search results (debug)"):
-                st.text(search_results)
+                st.text(f"Query used: {search_query}\n\n{search_results}")
  
             # Step 2: Run agent
             try:
@@ -80,17 +89,18 @@ if prompt := st.chat_input("Ask me anything..."):
                 )
  
                 task = Task(
-                    description=f"""Web search results for the user's question:
+                    description=f"""Web search results:
 {search_results}
  
-Recent conversation:
+Conversation history (IMPORTANT - use this for context on follow-up questions):
 {history}
  
-User's question: {prompt}
+User's current question: {prompt}
  
-Using the search results above, write a clear and friendly answer to the user's question.
+Use the conversation history to understand what the user is referring to (e.g. if they say "who won it?", check the history to know what "it" refers to).
+Then use the search results to give an accurate, friendly answer.
 If the search results don't contain the answer, say so honestly.""",
-                    expected_output="A concise, friendly, conversational answer based on the search results.",
+                    expected_output="A concise, friendly answer that correctly handles follow-up questions using conversation context.",
                     agent=agent
                 )
  
