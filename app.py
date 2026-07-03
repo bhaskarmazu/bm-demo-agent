@@ -1,26 +1,28 @@
-
 import streamlit as st
 from crewai import Agent, Task, Crew, LLM
+from tavily import TavilyClient
 from dotenv import load_dotenv
-from googlesearch import search
 import os
  
 load_dotenv()  # works locally
  
-# Get API key - works on both local and Streamlit Cloud
+# Get API keys - works on both local and Streamlit Cloud
 gemini_key = st.secrets.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY", ""))
+tavily_key = st.secrets.get("TAVILY_API_KEY", os.getenv("TAVILY_API_KEY", ""))
  
  
 def web_search(query: str) -> str:
-    """Search the web using Google and return compact results."""
+    """Search the web using Tavily (reliable from cloud servers)."""
     try:
-        results = list(search(query, num_results=3, advanced=True))
+        client = TavilyClient(api_key=tavily_key)
+        response = client.search(query, max_results=3)
+        results = response.get("results", [])
         if not results:
             return "No search results found."
         output = ""
         for r in results:
-            summary = r.description[:250] + "..." if r.description and len(r.description) > 250 else (r.description or "")
-            output += f"Title: {r.title}\nSummary: {summary}\n\n"
+            summary = r.get("content", "")[:250]
+            output += f"Title: {r['title']}\nSummary: {summary}\n\n"
         return output
     except Exception as e:
         return f"Search failed: {str(e)}"

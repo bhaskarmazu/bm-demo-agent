@@ -1,4 +1,4 @@
-crewai[google-genai]
+rewai[google-genai]
 python-dotenv
 streamlit
-googlesearch-python
+tavily-python
